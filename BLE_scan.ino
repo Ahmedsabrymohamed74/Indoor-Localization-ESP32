@@ -1,35 +1,72 @@
+#include <UbiBuilder.h>
+#include <UbiConstants.h>
+#include <Ubidots.h>
+#include <UbiHttp.h>
+#include <UbiProtocol.h>
+#include <UbiProtocolHandler.h>
+#include <UbiTcp.h>
+#include <UbiTypes.h>
+#include <UbiUdp.h>
+#include <UbiUtils.h>
+
 #include <iostream>
 #include <BLEDevice.h>
 #include <BLEUtils.h>
 #include <BLEScan.h>
 #include <BLEAdvertisedDevice.h>
+#include <WiFi.h>
+#include <Ubidots.h>
 
-int scanTime = 5; //In seconds
+/* Network credentials*/
+const char* UBIDOTS_TOKEN = "BBFF-yRZeguGTJQXLKQIx2cOzEkEsWTQhk0";
+const char* WIFI_SSID = "Dr.Sabry's Network (tmp)"; //VodafoneMobileWiFi-A04C95
+const char* WIFI_PASS = "$Drsabryhome01"; //9877350427
+//Ubidots ubidots(UBIDOTS_TOKEN, UBI_TCP);
+Ubidots ubidots(UBIDOTS_TOKEN, UBI_TCP);
+// Ubidots ubidots(UBIDOTS_TOKEN, UBI_UDP);
+
+/*Initializing scan variables*/
+int scanTime = 2; //In seconds
 BLEScan* pBLEScan;
-String readString;
 
 class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
     void onResult(BLEAdvertisedDevice advertisedDevice) {
-      String MAC [500];
-      int rssi[500];
-      int MAC_size = sizeof(MAC) / sizeof(MAC);
 
-      // storing scanned MACs and RSSIs in seperate arrays for easier access
-      for (int s = 0  ; s < MAC_size; s++) {
-        MAC[s] = advertisedDevice.getAddress().toString().c_str();
-        rssi[s] = advertisedDevice.getRSSI();
-        Serial.print("MAC Address: ");
-        Serial.println(MAC[s]);
-        Serial.print("RSSI: ");
-        Serial.println(rssi[s]);
-        delay(100);
+      /* Sending to Ubidots*/
+      bool foo = true;
+      while (foo == true) {
+        ubidots.add("Test MAC", advertisedDevice.getRSSI());
+        bool bufferSent = false;
+        bufferSent = ubidots.send();
+        delay(7500);
+
+        if (bufferSent) {
+          Serial.println("Values sent by the device");
+          ESP.restart();
+        }
+        else {
+          ESP.restart();
+        }
+
+
+        /*           Printing MACs and resp RSSI
+          Serial.print("MAC Address: ");
+          Serial.println(advertisedDevice.getAddress().toString().c_str());
+          Serial.print("RSSI: ");
+          Serial.println(advertisedDevice.getRSSI());
+          delay(200);
+          String MAC = advertisedDevice.getAddress().toString().c_str();
+          int rssi = advertisedDevice.getRSSI();
+        */
       }
     }
 };
-
 void setup() {
   Serial.begin(115200);
-  Serial.println("Waiting for input...");
+  ubidots.wifiConnect(WIFI_SSID, WIFI_PASS);
+  ubidots.setDebug(true);  // Uncomment to debug
+
+  Serial.println("Starting Scan...");
   BLEDevice::init("ESP32");
   pBLEScan = BLEDevice::getScan(); //create new scan
   pBLEScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks());
@@ -39,26 +76,10 @@ void setup() {
 }
 
 void loop() {
-//  if (Serial.available()) {
-    String input;
-    String new_sc = "new scan";
-    String halt = "stop scan";
-    input = Serial.readString();
-    input.trim();
 
-//    if (input.equalsIgnoreCase(start)) {
-      Serial.println("Scan Started");
-      unsigned long start = micros();
-      BLEScanResults foundDevices = pBLEScan->start(scanTime, false);
-      unsigned long end = micros();
-      unsigned long delta = end - start;
-      Serial.println("Scan done!");
-      Serial.print("Scan Time Elapsed:  ");
-      long delta_s = (long) (delta / 1000) % 1000;
-      Serial.print(delta_s);
-      Serial.println(" seconds");
-      pBLEScan->clearResults();   // delete results fromBLEScan buffer to release memory
-//    }
-//  }
-  delay(5500);
+  Serial.println("Scan Started");
+  BLEScanResults foundDevices = pBLEScan->start(scanTime, false);
+  Serial.println("Scan Done!");
+  pBLEScan->clearResults();   // delete results fromBLEScan buffer to release memory
+  delay(7500);
 }
