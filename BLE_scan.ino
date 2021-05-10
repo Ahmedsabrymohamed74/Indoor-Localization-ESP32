@@ -18,9 +18,9 @@
 #include <Ubidots.h>
 
 /* Network credentials*/
-const char* UBIDOTS_TOKEN = "BBFF-yRZeguGTJQXLKQIx2cOzEkEsWTQhk0";
-const char* WIFI_SSID = "Dr.Sabry's Network (tmp)"; //VodafoneMobileWiFi-A04C95
-const char* WIFI_PASS = "$Drsabryhome01"; //9877350427
+const char* UBIDOTS_TOKEN = "UBIDOTS tocken";
+const char* WIFI_SSID = "ssid";
+const char* WIFI_PASS = "pass"; 
 //Ubidots ubidots(UBIDOTS_TOKEN, UBI_TCP);
 Ubidots ubidots(UBIDOTS_TOKEN, UBI_TCP);
 // Ubidots ubidots(UBIDOTS_TOKEN, UBI_UDP);
