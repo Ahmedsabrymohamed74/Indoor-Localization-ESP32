@@ -18,7 +18,7 @@
 #include <Ubidots.h>
 
 /* Network credentials*/
-const char* UBIDOTS_TOKEN = "UBIDOTS tocken";
+const char* UBIDOTS_TOKEN = "UBIDOTS token";
 const char* WIFI_SSID = "ssid";
 const char* WIFI_PASS = "pass"; 
 //Ubidots ubidots(UBIDOTS_TOKEN, UBI_TCP);
