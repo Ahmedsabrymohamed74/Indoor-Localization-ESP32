@@ -1,4 +1,4 @@
-# Helpers for generating BLE advertising payloads.
+# Helpers for generadting BLE advertising payloads.
 
 from micropython import const
 import struct
