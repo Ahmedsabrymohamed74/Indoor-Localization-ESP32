@@ -115,7 +115,7 @@ class BLESimpleCentral:
             conn_handle, start_handle, end_handle, uuid = data
 #             print("addr type : ", self._addr_type)
             for x in range(2):
-                print("MAC = ", self._addr)
+#                 print("MAC = ", self._addr)
                 print("RSSI = ", self.rssi)
                 print("service", data)
                 if conn_handle == self._conn_handle and uuid == _UART_SERVICE_UUID:
