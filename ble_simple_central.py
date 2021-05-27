@@ -1,5 +1,5 @@
 # This example finds and connects to a peripheral running the
-# UART service (e.g. ble_simple_peripheral.py).
+# UART Service (e.g. ble_simple_peripheral.py).
 
 import bluetooth
 import random
