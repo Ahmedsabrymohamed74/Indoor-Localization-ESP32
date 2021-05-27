@@ -54,6 +54,7 @@ class BLESimpleCentral:
         self._name = None
         self._addr_type = None
         self._addr = None
+        self._rssi = None #added
 
         # Callbacks for completion of various operations.
         # These reset back to None after being invoked.
@@ -73,15 +74,15 @@ class BLESimpleCentral:
 
     def _irq(self, event, data):
         if event == _IRQ_SCAN_RESULT:
-            addr_type, addr, adv_type, rssi, adv_data = data
+            addr_type, addr, adv_type, rssi, adv_data = data #take rssi from here
             if adv_type in (_ADV_IND, _ADV_DIRECT_IND) and _UART_SERVICE_UUID in decode_services(
                 adv_data
             ):
                 # Found a potential device, remember it and stop scanning.
                 self._addr_type = addr_type
-                self._addr = bytes(
-                    addr
-                )  # Note: addr buffer is owned by caller so need to copy it.
+                self.rssi = int(rssi)
+                self._addr = bytes(addr)  # Note: addr buffer is owned by caller so need to copy it.
+                
                 self._name = decode_name(adv_data) or "?"
                 self._ble.gap_scan(None)
 
@@ -108,13 +109,18 @@ class BLESimpleCentral:
             if conn_handle == self._conn_handle:
                 # If it was initiated by us, it'll already be reset.
                 self._reset()
-
+        
         elif event == _IRQ_GATTC_SERVICE_RESULT:
             # Connected device returned a service.
             conn_handle, start_handle, end_handle, uuid = data
-            print("service", data)
-            if conn_handle == self._conn_handle and uuid == _UART_SERVICE_UUID:
-                self._start_handle, self._end_handle = start_handle, end_handle
+#             print("addr type : ", self._addr_type)
+            for x in range(2):
+                print("MAC = ", self._addr)
+                print("RSSI = ", self.rssi)
+                print("service", data)
+                if conn_handle == self._conn_handle and uuid == _UART_SERVICE_UUID:
+                    self._start_handle, self._end_handle = start_handle, end_handle
+                print("debug msg")
 
         elif event == _IRQ_GATTC_SERVICE_DONE:
             # Service query complete.
@@ -123,7 +129,7 @@ class BLESimpleCentral:
                     self._conn_handle, self._start_handle, self._end_handle
                 )
             else:
-                print("Failed to find uart service.")
+                print("Failed to find uart service.")  # only finds 1 peripheral per device 
 
         elif event == _IRQ_GATTC_CHARACTERISTIC_RESULT:
             # Connected device returned a characteristic.
@@ -151,6 +157,7 @@ class BLESimpleCentral:
             if conn_handle == self._conn_handle and value_handle == self._tx_handle:
                 if self._notify_callback:
                     self._notify_callback(notify_data)
+        
 
     # Returns true if we've successfully connected and discovered characteristics.
     def is_connected(self):
@@ -165,7 +172,8 @@ class BLESimpleCentral:
         self._addr_type = None
         self._addr = None
         self._scan_callback = callback
-        self._ble.gap_scan(2000, 30000, 30000)
+        while True:
+            self._ble.gap_scan(2000, 30000, 30000)
 
     # Connect to the specified device (otherwise use cached address from a scan).
     def connect(self, addr_type=None, addr=None, callback=None):
@@ -209,6 +217,7 @@ def demo():
             nonlocal not_found
             not_found = True
             print("No peripheral found.")
+    
 
     central.scan(callback=on_scan)
 
