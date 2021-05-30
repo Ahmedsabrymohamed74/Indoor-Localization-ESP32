@@ -6,6 +6,8 @@ import random
 import struct
 import time
 import micropython
+import machine
+import binascii
 
 from ble_advertising import decode_services, decode_name
 
@@ -39,6 +41,7 @@ _ADV_NONCONN_IND = const(0x03)
 _UART_SERVICE_UUID = bluetooth.UUID("6E400001-B5A3-F393-E0A9-E50E24DCCA9E")
 _UART_RX_CHAR_UUID = bluetooth.UUID("6E400002-B5A3-F393-E0A9-E50E24DCCA9E")
 _UART_TX_CHAR_UUID = bluetooth.UUID("6E400003-B5A3-F393-E0A9-E50E24DCCA9E")
+matched_uuid = None
 
 
 class BLESimpleCentral:
@@ -46,7 +49,6 @@ class BLESimpleCentral:
         self._ble = ble
         self._ble.active(True)
         self._ble.irq(self._irq)
-
         self._reset()
 
     def _reset(self):
@@ -54,7 +56,7 @@ class BLESimpleCentral:
         self._name = None
         self._addr_type = None
         self._addr = None
-        self._rssi = None #added
+        self.rssi = None #added
 
         # Callbacks for completion of various operations.
         # These reset back to None after being invoked.
@@ -71,20 +73,24 @@ class BLESimpleCentral:
         self._end_handle = None
         self._tx_handle = None
         self._rx_handle = None
+        
+    def sanitizeMac(mac):
+     temp = mac.replace(":", "").replace("-", "").replace(".", "").upper()
+     return temp[:2] + ":" + ":".join([temp[i] + temp[i+1] for i in range(2,12,2)])
+
 
     def _irq(self, event, data):
         if event == _IRQ_SCAN_RESULT:
             addr_type, addr, adv_type, rssi, adv_data = data #take rssi from here
-            if adv_type in (_ADV_IND, _ADV_DIRECT_IND) and _UART_SERVICE_UUID in decode_services(
-                adv_data
-            ):
+            if adv_type in (_ADV_IND, _ADV_DIRECT_IND) and _UART_SERVICE_UUID in decode_services(adv_data):
                 # Found a potential device, remember it and stop scanning.
-                self._addr_type = addr_type
-                self.rssi = int(rssi)
-                self._addr = bytes(addr)  # Note: addr buffer is owned by caller so need to copy it.
-                
                 self._name = decode_name(adv_data) or "?"
+                addr_h = binascii.hexlify(bytes(addr)).decode('utf-8')
                 self._ble.gap_scan(None)
+                self._addr = bytes(addr)  # Note: addr buffer is owned by caller so need to copy it.
+                self._adv_data = bytes(adv_data)         
+                print('addr: {}, rssi: {}'.format(addr_h, rssi))
+                
 
         elif event == _IRQ_SCAN_DONE:
             if self._scan_callback:
@@ -113,14 +119,12 @@ class BLESimpleCentral:
         elif event == _IRQ_GATTC_SERVICE_RESULT:
             # Connected device returned a service.
             conn_handle, start_handle, end_handle, uuid = data
-#             print("addr type : ", self._addr_type)
-            for x in range(2):
-#                 print("MAC = ", self._addr)
-                print("RSSI = ", self.rssi)
-                print("service", data)
-                if conn_handle == self._conn_handle and uuid == _UART_SERVICE_UUID:
-                    self._start_handle, self._end_handle = start_handle, end_handle
-                print("debug msg")
+            self._uuid = binascii.hexlify(bytes(uuid)).decode('utf-8')
+            matched_uuid = bluetooth.UUID(uuid)
+#             print(self._uuid)
+            if conn_handle == self._conn_handle and uuid == _UART_SERVICE_UUID:
+                self._start_handle, self._end_handle = start_handle, end_handle
+#             print("debug msg")
 
         elif event == _IRQ_GATTC_SERVICE_DONE:
             # Service query complete.
@@ -169,11 +173,12 @@ class BLESimpleCentral:
 
     # Find a device advertising the environmental sensor service.
     def scan(self, callback=None):
+#         for x in range(6):
         self._addr_type = None
         self._addr = None
         self._scan_callback = callback
-        while True:
-            self._ble.gap_scan(2000, 30000, 30000)
+        self._ble.gap_scan(2000, 30000, 30000)
+    
 
     # Connect to the specified device (otherwise use cached address from a scan).
     def connect(self, addr_type=None, addr=None, callback=None):
@@ -206,12 +211,11 @@ class BLESimpleCentral:
 def demo():
     ble = bluetooth.BLE()
     central = BLESimpleCentral(ble)
-
     not_found = False
 
     def on_scan(addr_type, addr, name):
-        if addr_type is not None:
-            print("Found peripheral:", addr_type, addr, name)
+        if addr is not None:
+            print("Found peripheral:", name)
             central.connect()
         else:
             nonlocal not_found
